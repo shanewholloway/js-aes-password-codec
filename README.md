@@ -5,7 +5,7 @@ An Isomorphic PBKDF2 + AES-GCM password codec implementation for NodeJS and the 
 
 Browser:
 ```html
-<script src='https://unpkg.com/aesgcm_password_codec/umd/aesgcm_password_codec.min.js' />
+<script src='https://unpkg.com/aesgcm_password_codec/umd/aesgcm_password_codec.min.js'></script>
 ```
 
 NodeJS:
