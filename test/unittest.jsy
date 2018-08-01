@@ -1,0 +1,63 @@
+//require('source-map-support').install()
+const {assert, expect} = require('chai')
+const aesgcm_password_codec = require('aesgcm_password_codec')
+
+describe @ 'Simple tests with new salt', @=> ::
+  let aes_codec
+  
+  before @=>> :: aes_codec = await aesgcm_password_codec @ 'secret password'
+
+  it @ 'should round-trip', @=>> ::
+    const obj = @{}
+      hello: 'from mocha'
+      date: new Date().toISOString()
+
+    const enc_rec_b64 = await aes_codec.encrypt_json(obj)
+
+    expect(enc_rec_b64).to.be.a('string')
+
+    const rx_base64 = /^[A-Za-z0-9\ =.+\/_-]+$/
+    expect(enc_rec_b64).to.match @ rx_base64
+      'Expected "enc_rec_b64" to be a base64 encoded'
+
+    const rt_u8 = await aes_codec.decrypt_u8(enc_rec_b64)
+    expect(rt_u8).to.be.an.instanceof(ArrayBuffer)
+
+    const rt_json = await aes_codec.decrypt_utf8(enc_rec_b64)
+    expect(rt_json).to.be.a('string')
+
+    const rt_obj = await aes_codec.decrypt_json(enc_rec_b64)
+    expect(rt_obj).to.be.an('object').to.deep.equal(obj)
+
+
+  it @ 'should load old objects', @=>> ::
+    const obj = @{}
+      hello: 'from mocha'
+      date: new Date().toISOString()
+
+
+  it @ 'should export config options in use', @=>> ::
+    expect( aes_codec.options ).to.be.an @ 'object'
+    expect( aes_codec.options.iv_size ).to.be.a @ 'number'
+
+    expect( aes_codec.options.pbkdf2 ).to.be.an @ 'object'
+    expect( aes_codec.options.pbkdf2.salt ).to.be.a @ 'string'
+
+    expect( aes_codec.options.cipher ).to.be.an @ 'object'
+
+
+
+
+describe @ 'Simple tests with existing salt', @=> ::
+  let aes_codec
+  
+  before @=>> :: aes_codec = await aesgcm_password_codec @ 'secret password', @{} salt: '+t07slf9nBY9Z5PPynvF2g=='
+
+  it @ 'should load an existing object', @=>> ::
+    const enc_rec_b64 = 'mbo887iv+21XYICa fjjgveo5mSs3/vLpVMT/geIOOJCAcAGJUMQICiVHDswDufIfaOU/DRTT6vM='
+
+    expect @ await aes_codec.decrypt_json(enc_rec_b64)
+    .to.be.an('object')
+    .to.deep.equal @:
+      "hello": "from the browser"
+

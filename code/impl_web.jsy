@@ -1,0 +1,74 @@
+import {aesgcm_password_codec_options, aesgcm_password_codec_api} from './impl_common.jsy'
+
+export default aesgcm_password_codec_web
+export async function aesgcm_password_codec_web(password, options) ::
+  options = aesgcm_password_codec_options @ options
+
+  if null == options.pbkdf2.salt ::
+    options.pbkdf2.salt = u8_to_base64 @
+      crypto.getRandomValues @
+        new Uint8Array @ options.salt_size || 16
+
+  const sk_passwd = await crypto.subtle.importKey @
+    'raw', utf8_to_u8(password)
+    {name: 'PBKDF2'}, false, [ 'deriveKey', 'deriveBits' ]
+
+  const sk_aes = await crypto.subtle.deriveKey @ 
+    @{} name: 'PBKDF2'
+        iterations: options.pbkdf2.iterations
+        salt: base64_to_u8 @ options.pbkdf2.salt
+        hash: @{} name: 'SHA-256'
+    sk_passwd
+    @{} name: 'AES-GCM', length: 128
+    false, @[] 'encrypt', 'decrypt'
+
+
+  const iv_size = options.iv_size
+  return aesgcm_password_codec_api @:
+    options, encrypt_u8, decrypt_u8,
+    utf8_to_u8, u8_to_utf8,
+    u8_to_base64, base64_to_u8, 
+
+
+  async function encrypt_u8(u8) ::
+    const iv = crypto.getRandomValues @ new Uint8Array(iv_size)
+    const enc_data = await crypto.subtle.encrypt @
+      { name: 'AES-GCM', iv }, sk_aes, u8
+
+    return `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
+
+  async function decrypt_u8(enc_rec_b64) ::
+    const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
+    return await crypto.subtle.decrypt @
+      { name: 'AES-GCM', iv}, sk_aes, enc_data
+
+
+
+function utf8_to_u8(utf8) ::
+  return new TextEncoder('utf-8').encode @ utf8.normalize('NFKC')
+
+function u8_to_utf8(u8) ::
+  return new TextDecoder('utf-8').decode @ u8
+
+const _fromCharCode = String.fromCharCode
+function u8_to_base64(u8) ::
+  if u8 instanceof ArrayBuffer ::
+    u8 = new Uint8Array(u8)
+
+  let res=''
+  const len = u8.byteLength
+  for let i=0; i<len; i++ ::
+    res += _fromCharCode(u8[i])
+  return btoa(res)
+
+const _charCodeAt = ''.charCodeAt
+function base64_to_u8(str_b64) ::
+  if null == str_b64 ::
+    throw new TypeError @ 'WTF'
+  const sz = atob(str_b64)
+  const len = sz.length
+  const res = new Uint8Array(len)
+  for let i=0; i<len; i++ ::
+    res[i] = _charCodeAt.call(sz, i)
+  return res
+

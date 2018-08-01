@@ -1,0 +1,61 @@
+const { promisify } = require('util')
+const { randomBytes, pbkdf2, createCipheriv, createDecipheriv } = require('crypto')
+const async_pbkdf2 = promisify @ pbkdf2
+
+import {aesgcm_password_codec_options, aesgcm_password_codec_api} from './impl_common.jsy'
+
+export default aesgcm_password_codec_nodejs
+export async function aesgcm_password_codec_nodejs(password, options) ::
+  options = aesgcm_password_codec_options @ options
+
+  if null == options.pbkdf2.salt ::
+    options.pbkdf2.salt = u8_to_base64 @
+      randomBytes @ options.salt_size || 16
+
+  const sk_passwd = await async_pbkdf2 @
+    Buffer.from @ password
+    Buffer.from @ options.pbkdf2.salt, 'base64'
+    options.pbkdf2.iterations
+    options.pbkdf2.keylen, 'sha256'
+
+  const iv_size = options.iv_size
+  return aesgcm_password_codec_api @:
+    options, encrypt_u8, decrypt_u8,
+    utf8_to_u8, u8_to_utf8,
+    u8_to_base64, base64_to_u8, 
+
+
+  async function encrypt_u8(u8) ::
+    const iv = randomBytes(iv_size)
+    const cipher = createCipheriv @
+      'aes-128-gcm', sk_passwd, iv
+
+    const enc_data = Buffer.concat @#
+      cipher.update @ Buffer.from @ u8
+      cipher.final()
+      cipher.getAuthTag()
+    return `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
+
+  async function decrypt_u8(enc_rec_b64) ::
+    const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
+    const decipher = createDecipheriv @
+      'aes-128-gcm', sk_passwd, Buffer.from(iv)
+
+    decipher.setAuthTag @ enc_data.slice(-16)
+    return Uint8Array
+      .from @ Buffer.concat @#
+        decipher.update @ enc_data.slice(0,-16)
+        decipher.final()
+      .buffer
+
+
+
+function utf8_to_u8(utf8) ::
+  return Buffer.from(utf8, 'utf-8')
+function u8_to_utf8(u8) ::
+  return Buffer.from(u8).toString('utf-8')
+function u8_to_base64(u8) ::
+  return Buffer.from(u8).toString('base64')
+function base64_to_u8(str_b64) ::
+  return new Uint8Array @ Buffer.from(str_b64, 'base64')
+

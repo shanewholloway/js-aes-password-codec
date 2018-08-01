@@ -1,0 +1,41 @@
+export function aesgcm_password_codec_options(options) ::
+  const keylen = 16 // AES-128
+
+  if 'string' === typeof options ::
+    options = @{} salt: options
+  else ::
+    options = Object.assign @ {iv_size: 12}, options
+
+  const pbkdf2 = Object.assign @
+    @{} iterations: 100000, hash: 'SHA-256', keylen, salt: options.salt
+    options.pbkdf2
+
+  const cipher = Object.assign @
+    @{} alg: 'AES-128-GCM', tagLength: 128
+    options.cipher
+
+  const iv_size = options.iv_size
+  return @{} iv_size, pbkdf2, cipher
+
+
+export function aesgcm_password_codec_api(base_api) ::
+  const { encrypt_u8, decrypt_u8, utf8_to_u8, u8_to_utf8 } = base_api
+  return @{}
+    __proto__: base_api
+
+    encrypt_json: obj =>
+      encrypt_u8 @ 
+        utf8_to_u8 @ 
+          JSON.stringify(obj)
+
+    decrypt_json: enc_rec_b64 => 
+      decrypt_u8(enc_rec_b64)
+        .then @ u8 => JSON.parse @ u8_to_utf8 @ u8
+  
+    encrypt_utf8: str =>
+      encrypt_u8 @ utf8_to_u8 @ str
+
+    decrypt_utf8: enc_rec_b64 => 
+      decrypt_u8(enc_rec_b64)
+        .then @ u8 => u8_to_utf8 @ u8
+  
