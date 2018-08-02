@@ -1,7 +1,7 @@
 import {aesgcm_password_codec_options, aesgcm_password_codec_api} from './impl_common.jsy'
 
 export default aesgcm_password_codec_web
-export async function aesgcm_password_codec_web(password, options) ::
+export function aesgcm_password_codec_web(password, options) ::
   options = aesgcm_password_codec_options @ options
 
   if null == options.pbkdf2.salt ::
@@ -9,38 +9,72 @@ export async function aesgcm_password_codec_web(password, options) ::
       crypto.getRandomValues @
         new Uint8Array @ options.salt_size || 16
 
-  const sk_passwd = await crypto.subtle.importKey @
-    'raw', utf8_to_u8(password)
-    {name: 'PBKDF2'}, false, [ 'deriveKey', 'deriveBits' ]
+  if 'string' === typeof password ::
+    return aes_key_from_password(password, options)
+      .then @ with_aes_key
+  else ::
+    return aes_key_from_base64(password.aes_key, options)
+      .then @ with_aes_key
 
-  const sk_aes = await crypto.subtle.deriveKey @ 
-    @{} name: 'PBKDF2'
-        iterations: options.pbkdf2.iterations
-        salt: base64_to_u8 @ options.pbkdf2.salt
-        hash: @{} name: 'SHA-256'
-    sk_passwd
-    @{} name: 'AES-GCM', length: 128
-    false, @[] 'encrypt', 'decrypt'
+  function with_aes_key(sk_aes_p) ::
+    const sk_aes = sk_aes_p
+    const iv_size = options.iv_size
+
+    return aesgcm_password_codec_api @:
+      options, encrypt_u8, decrypt_u8, export_aeskey,
+      utf8_to_u8, u8_to_utf8,
+      u8_to_base64, base64_to_u8, 
+
+    function export_aeskey() ::
+      if ! options.extractable ::
+        return Promise.resolve(null)
+      return crypto.subtle
+        .exportKey @ 'raw', sk_aes
+        .then @ jwk => @:
+          aes_key: u8_to_base64 @ jwk
+
+    function encrypt_u8(u8) ::
+      const iv = crypto.getRandomValues @ new Uint8Array(iv_size)
+      return crypto.subtle
+        .encrypt @
+          { name: 'AES-GCM', iv }, sk_aes, u8
+        .then @ enc_data =>
+          `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
+
+    function decrypt_u8(enc_rec_b64) ::
+      const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
+      return crypto.subtle.decrypt @
+        { name: 'AES-GCM', iv}, sk_aes, enc_data
 
 
-  const iv_size = options.iv_size
-  return aesgcm_password_codec_api @:
-    options, encrypt_u8, decrypt_u8,
-    utf8_to_u8, u8_to_utf8,
-    u8_to_base64, base64_to_u8, 
+function aes_key_from_password(password, options) ::
+  return crypto.subtle
+    .importKey @
+      'raw', utf8_to_u8(password)
+      {name: 'PBKDF2'}, false, [ 'deriveKey', 'deriveBits' ]
 
+    .then @ sk_passwd =>
+      crypto.subtle.deriveKey @ 
+        @{} name: 'PBKDF2'
+            iterations: options.pbkdf2.iterations
+            salt: base64_to_u8 @ options.pbkdf2.salt
+            hash: @{} name: options.pbkdf2.hash
+        sk_passwd
+        @{} name: 'AES-GCM'
+            length: options.cipher.length
+            tagLength: options.cipher.tagLength
+        true === options.extractable
+        @[] 'encrypt', 'decrypt'
 
-  async function encrypt_u8(u8) ::
-    const iv = crypto.getRandomValues @ new Uint8Array(iv_size)
-    const enc_data = await crypto.subtle.encrypt @
-      { name: 'AES-GCM', iv }, sk_aes, u8
+function aes_key_from_base64(aes_key, options) ::
+  return crypto.subtle.importKey @
+    'raw', base64_to_u8(aes_key)
+    @{} name: 'AES-GCM'
+        length: options.cipher.length
+        tagLength: options.cipher.tagLength
+    true === options.extractable
+    @[] 'encrypt', 'decrypt'
 
-    return `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
-
-  async function decrypt_u8(enc_rec_b64) ::
-    const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
-    return await crypto.subtle.decrypt @
-      { name: 'AES-GCM', iv}, sk_aes, enc_data
 
 
 

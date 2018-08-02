@@ -12,41 +12,64 @@ export async function aesgcm_password_codec_nodejs(password, options) ::
     options.pbkdf2.salt = u8_to_base64 @
       randomBytes @ options.salt_size || 16
 
-  const sk_passwd = await async_pbkdf2 @
+  if 'string' === typeof password ::
+    return aes_key_from_password(password, options)
+      .then @ with_aes_key
+
+  return Promise.resolve @
+    with_aes_key @
+      Buffer.from @
+        password.aes_key, 'base64'
+
+
+  function with_aes_key(sk_aes_p) ::
+    const sk_aes = sk_aes_p
+    const iv_size = options.iv_size
+    const tag_bytes = options.cipher.tagLength / 8
+
+    return aesgcm_password_codec_api @:
+      options, encrypt_u8, decrypt_u8, export_aeskey,
+      utf8_to_u8, u8_to_utf8,
+      u8_to_base64, base64_to_u8, 
+
+    function export_aeskey() ::
+      return Promise.resolve @
+        ! options.extractable ? null
+        : @{} aes_key: sk_aes.toString('base64')
+
+    function encrypt_u8(u8) ::
+      const iv = randomBytes(iv_size)
+      const cipher = createCipheriv @
+        `aes-${options.cipher.length}-gcm`, sk_aes, iv
+        @{} authTagLength: options.cipher.tagLength/8
+
+      const enc_data = Buffer.concat @#
+        cipher.update @ Buffer.from @ u8
+        cipher.final()
+        cipher.getAuthTag()
+      return Promise.resolve @
+        `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
+
+    function decrypt_u8(enc_rec_b64) ::
+      const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
+      const decipher = createDecipheriv @
+        `aes-${options.cipher.length}-gcm`, sk_aes, Buffer.from(iv)
+        @{} authTagLength: options.cipher.tagLength/8
+
+      decipher.setAuthTag @ enc_data.slice(-tag_bytes)
+      const buf = Buffer.concat @#
+        decipher.update @ enc_data.slice(0,-tag_bytes)
+        decipher.final()
+      return Promise.resolve @
+        Uint8Array.from(buf).buffer
+
+function aes_key_from_password(password, options) ::
+  return async_pbkdf2 @
     Buffer.from @ password
     Buffer.from @ options.pbkdf2.salt, 'base64'
     options.pbkdf2.iterations
-    options.pbkdf2.keylen, 'sha256'
-
-  const iv_size = options.iv_size
-  return aesgcm_password_codec_api @:
-    options, encrypt_u8, decrypt_u8,
-    utf8_to_u8, u8_to_utf8,
-    u8_to_base64, base64_to_u8, 
-
-
-  async function encrypt_u8(u8) ::
-    const iv = randomBytes(iv_size)
-    const cipher = createCipheriv @
-      'aes-128-gcm', sk_passwd, iv
-
-    const enc_data = Buffer.concat @#
-      cipher.update @ Buffer.from @ u8
-      cipher.final()
-      cipher.getAuthTag()
-    return `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
-
-  async function decrypt_u8(enc_rec_b64) ::
-    const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
-    const decipher = createDecipheriv @
-      'aes-128-gcm', sk_passwd, Buffer.from(iv)
-
-    decipher.setAuthTag @ enc_data.slice(-16)
-    return Uint8Array
-      .from @ Buffer.concat @#
-        decipher.update @ enc_data.slice(0,-16)
-        decipher.final()
-      .buffer
+    options.pbkdf2.keylen
+    options.pbkdf2.hash.toLowerCase().replace('-','')
 
 
 

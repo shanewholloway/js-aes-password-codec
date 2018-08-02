@@ -1,21 +1,24 @@
 export function aesgcm_password_codec_options(options) ::
-  const keylen = 16 // AES-128
-
   if 'string' === typeof options ::
     options = @{} salt: options
   else ::
     options = Object.assign @ {iv_size: 12}, options
 
   const pbkdf2 = Object.assign @
-    @{} iterations: 100000, hash: 'SHA-256', keylen, salt: options.salt
+    @{} hash: 'SHA-256'
+        salt: options.salt
+        iterations: options.iterations || 100000
     options.pbkdf2
 
   const cipher = Object.assign @
-    @{} alg: 'AES-128-GCM', tagLength: 128
+    @{} alg: 'AES-GCM', length: 128, tagLength: 128
     options.cipher
 
-  const iv_size = options.iv_size
-  return @{} iv_size, pbkdf2, cipher
+  pbkdf2.keylen = cipher.length / 8
+
+  return @{} pbkdf2, cipher
+    iv_size: options.iv_size
+    extractable: options.extractable
 
 
 export function aesgcm_password_codec_api(base_api) ::
