@@ -1,6 +1,6 @@
 {
   "name": "aesgcm_password_codec",
-  "version": "0.0.2",
+  "version": "0.1.2",
   "description": "Isomorphic PBKDF2 + AES-GCM password codec",
   "license": "BSD-2-Clause",
   "author": "Shane Holloway <shane.holloway@ieee.org>",

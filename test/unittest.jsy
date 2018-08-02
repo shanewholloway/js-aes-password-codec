@@ -34,7 +34,6 @@ describe @ 'Simple tests with new salt', @=> ::
 
 
   it @ 'should export config options in use', @=>> ::
-    console.log @ aes_codec.options
     expect( aes_codec.options ).to.be.an @ 'object'
     expect( aes_codec.options.iv_size ).to.be.a @ 'number'
 

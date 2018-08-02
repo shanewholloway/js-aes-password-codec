@@ -18,7 +18,7 @@ export default [
     output: { file: pkg.browser.replace('.min.js','.dbg.js'), format: 'umd', name: pkg.name, exports:'default', sourcemap } },
 
   { input: `code/index.web.jsy`, plugins: plugins_min, external:[],
-    output: { file: pkg.browser, format: 'umd', name: pkg.name, exports:'default', sourcemap } },
+    output: { file: pkg.browser, format: 'umd', name: pkg.name, exports:'default' } },
 
   { input: `test/unittest.jsy`, context: 'window', plugins, external:[],
     output: { file: 'test/__unittest.iife.js', format: 'iife', name: `test_${pkg.name}`, sourcemap } },
