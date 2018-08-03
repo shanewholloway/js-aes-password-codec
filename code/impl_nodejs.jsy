@@ -10,7 +10,7 @@ export async function aesgcm_password_codec_nodejs(password, options) ::
 
   if null == options.pbkdf2.salt ::
     options.pbkdf2.salt = u8_to_base64 @
-      randomBytes @ options.salt_size || 16
+      randomBytes @ options.pbkdf2.salt_bytes
 
   if 'string' === typeof password ::
     return aes_key_from_password(password, options)
@@ -24,7 +24,7 @@ export async function aesgcm_password_codec_nodejs(password, options) ::
 
   function with_aes_key(sk_aes_p) ::
     const sk_aes = sk_aes_p
-    const iv_size = options.iv_size
+    const iv_bytes = options.cipher.iv_bytes
     const tag_bytes = options.cipher.tagLength / 8
 
     return aesgcm_password_codec_api @:
@@ -38,7 +38,7 @@ export async function aesgcm_password_codec_nodejs(password, options) ::
         : @{} aes_key: sk_aes.toString('base64')
 
     function encrypt_u8(u8) ::
-      const iv = randomBytes(iv_size)
+      const iv = randomBytes(iv_bytes)
       const cipher = createCipheriv @
         `aes-${options.cipher.length}-gcm`, sk_aes, iv
         @{} authTagLength: options.cipher.tagLength/8

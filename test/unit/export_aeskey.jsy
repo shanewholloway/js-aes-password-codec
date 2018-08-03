@@ -1,0 +1,56 @@
+import @{}
+  aesgcm_password_codec
+  assert, expect
+  rx_base64
+from './_common.jsy'
+
+export default function() ::
+  it @ 'should not allow exporting aes_key without extractable option', @=>> ::
+    const aes_codec = await aesgcm_password_codec @
+      'secret password', @{} iterations: 1000
+
+    expect( await aes_codec.export_aeskey() ).to.be.null
+
+  it @ 'should allow exporting aes_key with extractable option set', @=>> ::
+    const aes_codec = await aesgcm_password_codec @
+      'secret password', @{} extractable: true, iterations: 1000
+
+    const extracted = await aes_codec.export_aeskey()
+
+    expect( extracted )
+    .to.be.an('object')
+    .to.deep.equal @:
+      aes_key: extracted.aes_key
+
+    expect( extracted.aes_key )
+    .to.be.a('string')
+    .to.match @ rx_base64
+
+
+  it @ 'should roundtrip data', @=>> ::
+    const aes_passwd_codec = await aesgcm_password_codec @
+      'secret password', @{} extractable: true, iterations: 1000
+
+    const enc_rec_b64 = await aes_passwd_codec.encrypt_json @:
+      'hello': 'roundtrip using a saved aes_key'
+
+    const aes_key = await aes_passwd_codec.export_aeskey()
+
+    const aes_key_codec = await aesgcm_password_codec(aes_key)
+
+    expect @ await aes_key_codec.decrypt_json(enc_rec_b64)
+    .to.be.an('object')
+    .to.deep.equal @:
+      'hello': 'roundtrip using a saved aes_key'
+
+  it @ 'should load an existing object', @=>> ::
+    const aes_codec = await aesgcm_password_codec @:
+      aes_key: 'swoGKUz4GZfN9ue3brHQxQ=='
+
+    const enc_rec_b64 = 'xbKEPWbnwWi811Iy ZoYeZ4hoahZw49cbFcveBVUfyh79grg0v0O4YzxhlP1L2X8AAvUfMoBww1u4PUMUaw=='
+
+    expect @ await aes_codec.decrypt_json(enc_rec_b64)
+    .to.be.an('object')
+    .to.deep.equal @:
+      'hello': 'using a saved aes_key'
+

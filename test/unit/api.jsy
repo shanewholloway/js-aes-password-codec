@@ -1,0 +1,60 @@
+import @{}
+  aesgcm_password_codec
+  assert, expect
+from './_common.jsy'
+
+export default function () ::
+  let aes_codec
+  
+  before @=>> ::
+    aes_codec = await aesgcm_password_codec @ 'secret password',
+      @{} iterations: 1000
+
+  const expected_api = @{}
+    encrypt_u8: 'function'
+    encrypt_utf8: 'function'
+    encrypt_json: 'function'
+
+    decrypt_u8: 'function'
+    decrypt_utf8: 'function'
+    decrypt_json: 'function'
+
+    export_aeskey: 'function'
+
+    utf8_to_u8: 'function'
+    u8_to_utf8: 'function'
+    u8_to_base64: 'function'
+    base64_to_u8: 'function'
+
+    options: @{}
+      pbkdf2: @{}
+        hash: 'string'
+        salt: 'string'
+        iterations: 'number'
+        salt_bytes: 'number'
+
+      cipher: @{}
+        alg: 'string'
+        length: 'number'
+        tagLength: 'number'
+        iv_bytes: 'number'
+
+
+  gen_kind_of_tests @ 'api', expected_api, k => aes_codec[k]
+
+    
+function gen_kind_of_tests(prefix, expected_api, root) ::
+  for const [attr, kind] of Object.entries(expected_api) ::
+    if 'object' === typeof kind ::
+      describe @ `${prefix}.${attr} to be a composite object`, @=> ::
+        it @ `${prefix}.${attr} to be an object`
+          @=>> expect(root(attr)).to.be.an('object')
+
+        gen_kind_of_tests @
+          `${prefix}.${attr}`, kind,
+          k => root(attr)[k]
+
+    else if 'string' === typeof attr ::
+      it @ `${prefix}.${attr} to be a "${kind}"`
+        @=>> expect(root(attr)).to.be.a(kind)
+

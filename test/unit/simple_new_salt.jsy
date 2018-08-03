@@ -1,0 +1,34 @@
+import @{}
+  aesgcm_password_codec
+  assert, expect
+  rx_base64
+from './_common.jsy'
+
+export default function() ::
+  let aes_codec
+  
+  before @=>> ::
+    aes_codec = await aesgcm_password_codec @ 'secret password',
+      @{} iterations: 1000
+
+  it @ 'should round-trip', @=>> ::
+    const obj = @{}
+      hello: 'from mocha'
+      date: new Date().toISOString()
+
+    const enc_rec_b64 = await aes_codec.encrypt_json(obj)
+
+    expect(enc_rec_b64).to.be.a('string')
+
+    expect(enc_rec_b64).to.match @ rx_base64
+      `Expected 'enc_rec_b64' to be a base64 encoded`
+
+    const rt_u8 = await aes_codec.decrypt_u8(enc_rec_b64)
+    expect(rt_u8).to.be.an.instanceof(ArrayBuffer)
+
+    const rt_json = await aes_codec.decrypt_utf8(enc_rec_b64)
+    expect(rt_json).to.be.a('string')
+
+    const rt_obj = await aes_codec.decrypt_json(enc_rec_b64)
+    expect(rt_obj).to.be.an('object').to.deep.equal(obj)
+

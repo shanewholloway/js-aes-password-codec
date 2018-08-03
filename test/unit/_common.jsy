@@ -1,0 +1,4 @@
+export const {assert, expect} = require('chai')
+export const aesgcm_password_codec = require('aesgcm_password_codec')
+export const rx_base64 = /^[A-Za-z0-9\ =.+\/_-]+$/
+

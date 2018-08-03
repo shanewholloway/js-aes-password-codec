@@ -1,0 +1,20 @@
+import @{}
+  aesgcm_password_codec
+  assert, expect
+from './_common.jsy'
+
+
+export default function () ::
+  let aes_codec
+  
+  before @=>> ::
+    aes_codec = await aesgcm_password_codec @ 'secret password',
+      @{} iterations: 1000, salt: '+t07slf9nBY9Z5PPynvF2g=='
+
+  it @ 'should load an existing object', @=>> ::
+    const enc_rec_b64 = '05F0TlahOlJvWrXq 0JeSS4hNMfgXHYidqnOnon/CLfUVJeP4TdugwBmWJWdrjy56u6phby7tj8o='
+
+    expect @ await aes_codec.decrypt_json(enc_rec_b64)
+    .to.be.an('object')
+    .to.deep.equal @:
+      'hello': 'from the browser'

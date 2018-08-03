@@ -1,0 +1,75 @@
+import @{}
+  aesgcm_password_codec
+  assert, expect
+  rx_base64
+from './_common.jsy'
+
+export default function (validate, config_options) ::
+  return () => ::
+    describe @ `hash: default`,
+      config_variation @ validate, config_options
+
+    for const hash of ['SHA-1', 'SHA-192', 'SHA-256', 'SHA-512'] ::
+      describe @ `hash: ${hash}`,
+        config_variation @ validate, config_options, @{} hash
+
+export function config_variation(validate, config_options, extra_options) ::
+  config_options = Object.assign @ {},
+    config_options
+    extra_options
+    @{} iterations: 1000
+        extractable: true
+
+  return function () ::
+    let aes_codec
+    
+    before @=>> ::
+      aes_codec = await aesgcm_password_codec @
+        'secret password', config_options
+
+
+    it @ 'should be self-consistent', @=>> ::
+      const {options} = aes_codec
+
+      expect @ options.cipher.alg
+      .to.be.equal @ 'AES-GCM'
+
+      expect @ options.pbkdf2.keylen * 8
+      .to.be.equal @ options.cipher.length
+
+      expect @ validate.tag_bytes * 8
+      .to.be.equal @ options.cipher.tagLength
+
+
+    it @ 'should have consistent lengths', @=>> ::
+      const u8_fixed = aes_codec.utf8_to_u8 @ 'fixed'
+
+      const enc_rec_b64 = await aes_codec.encrypt_u8(u8_fixed)
+      expect(enc_rec_b64).to.be.a('string').and.to.match(rx_base64)
+
+      const parts = enc_rec_b64.split(' ')
+        .map @ p => aes_codec.base64_to_u8(p)
+
+      expect @ parts[0].byteLength
+      .to.equal @ aes_codec.options.cipher.iv_bytes
+
+      expect @ parts[1].byteLength - u8_fixed.byteLength
+      .to.equal @ validate.tag_bytes,
+        parts[1].slice(-16)
+
+
+    it @ 'should round-trip JSON objects', @=>> ::
+      const obj = @{}
+        hello: 'config from mocha'
+        date: new Date().toISOString()
+        config_options: config_options
+
+      const enc_rec_b64 = await aes_codec.encrypt_json(obj)
+      expect(enc_rec_b64).to.be.a('string')
+
+      expect(enc_rec_b64).to.match @ rx_base64
+        `Expected 'enc_rec_b64' to be a base64 encoded`
+
+      const rt_obj = await aes_codec.decrypt_json(enc_rec_b64)
+      expect(rt_obj).to.be.an('object').to.deep.equal(obj)
+

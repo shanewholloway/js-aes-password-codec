@@ -7,7 +7,7 @@ export function aesgcm_password_codec_web(password, options) ::
   if null == options.pbkdf2.salt ::
     options.pbkdf2.salt = u8_to_base64 @
       crypto.getRandomValues @
-        new Uint8Array @ options.salt_size || 16
+        new Uint8Array @ options.pbkdf2.salt_bytes
 
   if 'string' === typeof password ::
     return aes_key_from_password(password, options)
@@ -18,7 +18,8 @@ export function aesgcm_password_codec_web(password, options) ::
 
   function with_aes_key(sk_aes_p) ::
     const sk_aes = sk_aes_p
-    const iv_size = options.iv_size
+    const iv_bytes = options.cipher.iv_bytes
+    const tagLength = options.cipher.tagLength
 
     return aesgcm_password_codec_api @:
       options, encrypt_u8, decrypt_u8, export_aeskey,
@@ -34,17 +35,19 @@ export function aesgcm_password_codec_web(password, options) ::
           aes_key: u8_to_base64 @ jwk
 
     function encrypt_u8(u8) ::
-      const iv = crypto.getRandomValues @ new Uint8Array(iv_size)
+      const iv = crypto.getRandomValues @ new Uint8Array(iv_bytes)
       return crypto.subtle
         .encrypt @
-          { name: 'AES-GCM', iv }, sk_aes, u8
+          @{} name: 'AES-GCM', iv, tagLength
+          sk_aes, u8
         .then @ enc_data =>
           `${u8_to_base64(iv)} ${u8_to_base64(enc_data)}`
 
     function decrypt_u8(enc_rec_b64) ::
       const [iv, enc_data] = enc_rec_b64.split(' ').map(base64_to_u8)
       return crypto.subtle.decrypt @
-        { name: 'AES-GCM', iv}, sk_aes, enc_data
+        @{} name: 'AES-GCM', iv, tagLength
+        sk_aes, enc_data
 
 
 function aes_key_from_password(password, options) ::
@@ -62,7 +65,6 @@ function aes_key_from_password(password, options) ::
         sk_passwd
         @{} name: 'AES-GCM'
             length: options.cipher.length
-            tagLength: options.cipher.tagLength
         true === options.extractable
         @[] 'encrypt', 'decrypt'
 
@@ -71,7 +73,6 @@ function aes_key_from_base64(aes_key, options) ::
     'raw', base64_to_u8(aes_key)
     @{} name: 'AES-GCM'
         length: options.cipher.length
-        tagLength: options.cipher.tagLength
     true === options.extractable
     @[] 'encrypt', 'decrypt'
 

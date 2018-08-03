@@ -1,124 +1,41 @@
 (require('source-map-support') || {install(){}}).install()
-const {assert, expect} = require('chai')
-const aesgcm_password_codec = require('aesgcm_password_codec')
 
-const rx_base64 = /^[A-Za-z0-9\ =.+\/_-]+$/
+import ut_simple_new_salt from './unit/simple_new_salt.jsy'
+describe @ 'Simple tests with new salt', ut_simple_new_salt
 
-describe @ 'Simple tests with new salt', @=> ::
-  let aes_codec
-  
-  before @=>> ::
-    aes_codec = await aesgcm_password_codec @ 'secret password',
-      @{} iterations: 1000
+import ut_simple_existing_salt from './unit/simple_existing_salt.jsy'
+describe @ 'Simple tests with existing salt', ut_simple_existing_salt
 
-  it @ 'should round-trip', @=>> ::
-    const obj = @{}
-      hello: 'from mocha'
-      date: new Date().toISOString()
+import ut_api from './unit/api.jsy'
+describe @ 'API', ut_api
 
-    const enc_rec_b64 = await aes_codec.encrypt_json(obj)
-
-    expect(enc_rec_b64).to.be.a('string')
-
-    expect(enc_rec_b64).to.match @ rx_base64
-      `Expected 'enc_rec_b64' to be a base64 encoded`
-
-    const rt_u8 = await aes_codec.decrypt_u8(enc_rec_b64)
-    expect(rt_u8).to.be.an.instanceof(ArrayBuffer)
-
-    const rt_json = await aes_codec.decrypt_utf8(enc_rec_b64)
-    expect(rt_json).to.be.a('string')
-
-    const rt_obj = await aes_codec.decrypt_json(enc_rec_b64)
-    expect(rt_obj).to.be.an('object').to.deep.equal(obj)
+import ut_export_aeskey from './unit/export_aeskey.jsy'
+describe @ 'AES key export and use', ut_export_aeskey
 
 
-  it @ 'should export config options in use', @=>> ::
-    expect( aes_codec.options ).to.be.an @ 'object'
-    expect( aes_codec.options.iv_size ).to.be.a @ 'number'
 
-    expect( aes_codec.options.pbkdf2 ).to.be.an @ 'object'
-    expect( aes_codec.options.pbkdf2.salt ).to.be.a @ 'string'
+import ut_with_config from './unit/with_config.jsy'
 
-    expect( aes_codec.options.cipher ).to.be.an @ 'object'
+describe @ 'Configurations', @=> ::
 
+  describe @ 'default',
+    ut_with_config @
+      @{} tag_bytes: 16
 
-describe @ 'Simple tests with existing salt', @=> ::
-  let aes_codec
-  
-  before @=>> ::
-    aes_codec = await aesgcm_password_codec @ 'secret password',
-      @{} iterations: 1000, salt: '+t07slf9nBY9Z5PPynvF2g=='
+  describe @ 'AES-128',
+    ut_with_config @
+      @{} tag_bytes: 16
+      @{} cipher: @{} length: 128
 
-  it @ 'should load an existing object', @=>> ::
-    const enc_rec_b64 = '05F0TlahOlJvWrXq 0JeSS4hNMfgXHYidqnOnon/CLfUVJeP4TdugwBmWJWdrjy56u6phby7tj8o='
+  describe @ 'AES-256',
+    ut_with_config @
+      @{} tag_bytes: 16
+      @{} cipher: @{} length: 256
 
-    expect @ await aes_codec.decrypt_json(enc_rec_b64)
-    .to.be.an('object')
-    .to.deep.equal @:
-      'hello': 'from the browser'
-
-
-describe @ 'AES key export and use', @=> ::
-  it @ 'should not allow exporting aes_key without extractable option', @=>> ::
-    const aes_codec = await aesgcm_password_codec @
-      'secret password', @{} iterations: 1000
-
-    expect( await aes_codec.export_aeskey() ).to.be.null
-
-  it @ 'should allow exporting aes_key with extractable option set', @=>> ::
-    const aes_codec = await aesgcm_password_codec @
-      'secret password', @{} extractable: true, iterations: 1000
-
-    const extracted = await aes_codec.export_aeskey()
-
-    expect( extracted )
-    .to.be.an('object')
-    .to.deep.equal @:
-      aes_key: extracted.aes_key
-
-    expect( extracted.aes_key )
-    .to.be.a('string')
-    .to.match @ rx_base64
-
-
-  it @ 'should roundtrip data', @=>> ::
-    const aes_passwd_codec = await aesgcm_password_codec @
-      'secret password', @{} extractable: true, iterations: 1000
-
-    const enc_rec_b64 = await aes_passwd_codec.encrypt_json @:
-      'hello': 'roundtrip using a saved aes_key'
-
-    const aes_key = await aes_passwd_codec.export_aeskey()
-
-    const aes_key_codec = await aesgcm_password_codec(aes_key)
-
-    expect @ await aes_key_codec.decrypt_json(enc_rec_b64)
-    .to.be.an('object')
-    .to.deep.equal @:
-      'hello': 'roundtrip using a saved aes_key'
-
-  it @ 'should load an existing object', @=>> ::
-    const aes_codec = await aesgcm_password_codec @:
-      aes_key: 'swoGKUz4GZfN9ue3brHQxQ=='
-
-    const enc_rec_b64 = 'xbKEPWbnwWi811Iy ZoYeZ4hoahZw49cbFcveBVUfyh79grg0v0O4YzxhlP1L2X8AAvUfMoBww1u4PUMUaw=='
-
-    expect @ await aes_codec.decrypt_json(enc_rec_b64)
-    .to.be.an('object')
-    .to.deep.equal @:
-      'hello': 'using a saved aes_key'
-
-
-describe @ 'SHA-512 configuration', @=> ::
-  it.skip @ 'Should be tested'
-
-describe @ 'AES-GCM tagLength', @=> ::
-  it.skip @ 'Should be tested'
-
-describe @ 'AES-GCM 192 configuration', @=> ::
-  it.skip @ 'Should be tested'
-
-describe @ 'AES-GCM 256 configuration', @=> ::
-  it.skip @ 'Should be tested'
+  describe @ `tag length variations`, () => ::
+    for const tagLength of [128, 120, 112, 104, 96, 64, 32] ::
+      describe @ `tag length ${tagLength}`,
+        ut_with_config @
+          @{} tag_bytes: tagLength/8
+          @{} cipher: @{} tagLength
 
