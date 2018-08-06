@@ -23,10 +23,10 @@ async function demo() {
     'secret password', { salt: '+t07slf9nBY9Z5PPynvF2g==' })
 
   console.log(aes_codec.options)
-  /* --> 
-  { pbkdf2: { hash: 'SHA-256', salt: '+t07slf9nBY9Z5PPynvF2g==', iterations: 1000000, keylen: 16 },
-    cipher: { alg: 'AES-GCM', length: 128, tagLength: 128 },
-    iv_size: 12, extractable: undefined }
+  /* --> { pbkdf2: { hash: 'SHA-256', salt: '+t07slf9nBY9Z5PPynvF2g==',
+                     iterations: 100000, keylen: 16 },
+           cipher: { alg: 'AES-GCM', length: 128, tagLength: 128 },
+           extractable: [Getter] }
   */
 
   const obj = {hello: 'friendly npm or github user!'}
