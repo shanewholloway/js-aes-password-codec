@@ -1,5 +1,4 @@
 import pkg from './package.json'
-import {parse as path_parse} from 'path'
 import rpi_jsy from 'rollup-plugin-jsy-lite'
 import { terser as rpi_terser } from 'rollup-plugin-terser'
 
@@ -8,7 +7,6 @@ const plugins = [rpi_jsy()]
 const plugins_min = plugins.concat([ rpi_terser({}) ])
 
 export default [
-
   { input: `code/index.nodejs.jsy`, plugins,
     output: [
       { file: pkg.main, format: 'cjs', exports:'default', sourcemap },
