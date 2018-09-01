@@ -98,9 +98,7 @@ function u8_to_base64(u8) ::
 
 const _charCodeAt = ''.charCodeAt
 function base64_to_u8(str_b64) ::
-  if null == str_b64 ::
-    throw new TypeError @ 'WTF'
-  const sz = atob(str_b64)
+  const sz = atob @ str_b64.replace(/-/g, '+').replace(/_/g, '/')
   const len = sz.length
   const res = new Uint8Array(len)
   for let i=0; i<len; i++ ::
