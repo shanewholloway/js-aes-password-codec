@@ -52,4 +52,4 @@ Project built with [JSY-lang](https://jsy-lang.github.io).
 
 ## License
 
-[MIT](LICENSE)
+[BSD 2-clause](LICENSE)
